@@ -28,7 +28,7 @@
 		list         => [],
 		publish_list => []}).
 
--define(NEW_STREAM, 
+-define(NEW_STREAM,
 	#{	sid     => undefined,
 		publish => undefined,
 		csid    => undefined,
@@ -46,7 +46,7 @@
 
 start(Socket) ->
 	rtmp_channel_sup:start_channel([Socket]).
-	
+
 start_link(Socket) ->
 	gen_server:start_link(?MODULE, Socket, []).
 
@@ -64,25 +64,25 @@ ackwinsize(Channel, Len) ->
 %%====================================================================
 
 init(Socket) when is_port(Socket)  ->
-	lager:debug("Start rtmp_channel; Socket: ~p", [Socket]),
+	?LOG_DEBUG("Start rtmp_channel; Socket: ~p", [Socket]),
 	self() ! init,
 	{ok, init_map(#{socket => Socket}, ?NEW_STATE)};
 
 init(Args) ->
 	{stop, {?MODULE, ?LINE, no_matching, Args}}.
-	
+
 %%--------------------------------------------------------------------
 
 handle_call(Request, _From, State) ->
 	{stop, {?MODULE, ?LINE, no_matching, Request}, {error, no_matching}, State}.
-	
+
 %%--------------------------------------------------------------------
 
 handle_cast({message, Type, StreamID, Message}, State) ->
 	manage_message(Type, Message, StreamID, State);
 
 handle_cast({send_command, Command, Params}, #{encode := Encode} = State) ->
-	lager:debug("send_command: ~p; Params:~n~p", [Command, Params]),
+	?LOG_DEBUG("send_command: ~p; Params:~n~p", [Command, Params]),
 	rtmp_encode:send_message(Encode, 0, rtmp:cmd(?RTMP_CMD_AMF0, {Command, Params})),
 	{noreply, State};
 
@@ -119,11 +119,11 @@ handle_info({'DOWN', _, _, Pid, _Reason}, #{decode := Decode, encode := Encode} 
 
 handle_info(Info, State) ->
 	{stop, {?MODULE, ?LINE, no_matching, Info}, State}.
-	
+
 %%--------------------------------------------------------------------
 
 terminate(normal, _) -> ok;
-terminate(Reason, State) -> lager:error("terminate~nReason: ~p~nState: ~p", [Reason, State]).
+terminate(Reason, State) -> ?LOG_ERROR("terminate~nReason: ~p~nState: ~p", [Reason, State]).
 
 %%--------------------------------------------------------------------
 
@@ -161,19 +161,19 @@ stream_message({command, [{?STRING, "createStream"}, TrID | _]}, _CMDStream, #{e
 	{noreply, State#{list => [{SID, SREF, Stream} | List], sid => SID + 1}};
 
 stream_message({command, [{?STRING, "closeStream"}, 0.0, null]}, #{play := Play, ref := Ref, sid := SID, name := Name, gsid := GSID}, #{encode := Encode} = State) when Play ->
-	lager:debug("stream_message: closeStream: ~p; Player", [Ref]),
+	?LOG_DEBUG("stream_message: closeStream: ~p; Player", [Ref]),
 	rtmp_event:notify({rtmp_event, self(), {stop_play, Ref, Name}}),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_STOP, {Name, GSID})),
 	{noreply, State};
 
 stream_message({command, [{?STRING, "closeStream"}, 0.0, null]}, #{publish := Publish, ref := Ref, sid := SID, name := Name, gsid := GSID} = Stream, #{encode := Encode} = State) when Publish /= undefined ->
-	lager:debug("stream_message: closeStream: ~p; Publisher (~p)", [Ref, Publish]),
+	?LOG_DEBUG("stream_message: closeStream: ~p; Publisher (~p)", [Ref, Publish]),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_UNPUBLISH_SUCCESS, {Name, GSID})),
 	rtmp_event:notify({rtmp_event, self(), {stop_publish, Ref, Name}}),
 	{noreply, save_stream(Stream#{publish => undefined, name => undefined}, State)};
 
 stream_message({command, [{?STRING, "closeStream"}, 0.0, null]}, #{ref := Ref} = Stream, State) ->
-	lager:debug("stream_message: closeStream: ~p", [Ref]),
+	?LOG_DEBUG("stream_message: closeStream: ~p", [Ref]),
 	{noreply, delete_stream(Stream, State)};
 
 stream_message({command, [{?STRING, "publish"}, 0.0, null, {?STRING, StreamName}, {?STRING, Type}]}, #{ref := Ref} = Stream, State) ->
@@ -185,7 +185,7 @@ stream_message({command, [{?STRING, "play"}, 0.0, null, {?STRING, StreamName}, _
 	{noreply, save_stream(Stream#{name => StreamName}, State)};
 
 stream_message({command, [{?STRING, CMD}, 0.0, null, Params]}, _Stream, State) ->
-	lager:debug("stream_message: RTMP command: ~p~nParams: ~p", [CMD, Params]),
+	?LOG_DEBUG("stream_message: RTMP command: ~p~nParams: ~p", [CMD, Params]),
 	rtmp_event:notify({rtmp_event, self(), {command, CMD, Params}}),
 	{noreply, State};
 
@@ -197,28 +197,28 @@ stream_message({asknowledgement_window_size, AckWinSize}, _Stream, #{encode := E
 	{noreply, State};
 
 stream_message(accept_connection, _Stream, #{encode := Encode} = State) ->
-	lager:debug("stream_message: accept_connection"),
+	?LOG_DEBUG("stream_message: accept_connection", []),
 	rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_PCM_ACKNOWLEDGEMENT_WINDOW_SIZE),
 	rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_PCM_SET_PEER_BANDWIDTH),
 	{noreply, State#{connected => true}};
 
 stream_message(reject_connection, _Stream, State) ->
-	lager:debug("stream_message: reject_connection"),
+	?LOG_DEBUG("stream_message: reject_connection", []),
 	{stop, normal, State};
 
 stream_message({accept_publish, Publish}, #{sid := SID, name := Name, gsid := GSID} = Stream, #{encode := Encode} = State) ->
-	lager:debug("stream_message: accept_publish for StreamName: ~p", [Name]),
+	?LOG_DEBUG("stream_message: accept_publish for StreamName: ~p", [Name]),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_START, {Name, GSID})),
 	Ref = erlang:monitor(process, Publish),
 	{noreply, save_stream(Stream#{publish => Publish, monref => Ref}, State)};
 
-stream_message(reject_publish, #{sid := SID, name := Name, gsid := GSID}, #{encode := Encode} = State) -> 
-	lager:debug("stream_message: reject_publish for StreamName: ~p", [Name]),
+stream_message(reject_publish, #{sid := SID, name := Name, gsid := GSID}, #{encode := Encode} = State) ->
+	?LOG_DEBUG("stream_message: reject_publish for StreamName: ~p", [Name]),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_BADNAME, {Name, GSID})),
 	{noreply, State};
 
 stream_message(accept_play, #{sid := SID, name := Name, gsid := GSID} = Stream, #{encode := Encode} = State) ->
-	lager:debug("stream_message: accept_play for StreamName: ~p", [Name]),
+	?LOG_DEBUG("stream_message: accept_play for StreamName: ~p", [Name]),
 	rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_UCM_STREAM_BEGIN(SID)),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_RESET, {Name, GSID})),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_START, {Name, GSID})),
@@ -226,7 +226,7 @@ stream_message(accept_play, #{sid := SID, name := Name, gsid := GSID} = Stream, 
 	{noreply, save_stream(Stream#{play => true}, State)};
 
 stream_message(reject_play, #{sid := SID, name := Name, gsid := GSID}, #{encode := Encode} = State) ->
-	lager:debug("stream_message: reject_play for StreamName: ~p", [Name]),
+	?LOG_DEBUG("stream_message: reject_play for StreamName: ~p", [Name]),
 	rtmp_encode:send_message(Encode, SID, rtmp:cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_FAILED, {Name, GSID})),
 	{noreply, State};
 
@@ -238,12 +238,12 @@ stream_message({publish, _}, _Stream, State) ->
 	{noreply, State};
 
 stream_message({data, Data, Type}, #{sid := SID}, #{encode := Encode} = State) ->
-	% lager:debug("Play data: <<~w>>; Type: ~w", [byte_size(Data), Type]),
+	% ?LOG_DEBUG("Play data: <<~w>>; Type: ~w", [byte_size(Data), Type]),
 	rtmp_encode:send_message(Encode, SID, {Type, Data}),
 	{noreply, State};
 
 stream_message(_Message, _Stream, State) ->
-	lager:debug("stream_message:~nMessage: ~p~nStream: ~p", [_Message, _Stream]),
+	?LOG_DEBUG("stream_message:~nMessage: ~p~nStream: ~p", [_Message, _Stream]),
 	{noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -258,4 +258,3 @@ delete_stream(#{sid := SID}, #{list := List} = State) ->
 
 init_map(Values, Map) ->
 	maps:fold(fun(K, V, M) -> case maps:is_key(K, M) of true -> maps:put(K, V, M); false -> M end end, Map, Values).
-	

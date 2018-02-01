@@ -1,4 +1,9 @@
 rtmp
-====
+=====
 
-RTMP erlang library
+An OTP application
+
+Build
+-----
+
+    $ rebar3 compile

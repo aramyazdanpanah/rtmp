@@ -31,12 +31,12 @@ init([]) ->
 	self() ! listen,
 	Port = rtmp:get_env(rtmp_listen_port, 1935),
 	{ok, #{listened => false, lport => Port}};
-	
+
 init(Args) ->
 	{stop, {?MODULE, ?LINE, no_matching, Args}}.
 
 %%--------------------------------------------------------------------
-	
+
 handle_call(Request, _From, State) ->
 	{stop, {?MODULE, ?LINE, no_matching, Request}, {error, no_matching}, State}.
 
@@ -56,7 +56,7 @@ handle_info(listen, #{listened := false, lport := LPort} = State) ->
 			timer:send_after(5000, listen),
 			{noreply, State};
 		{error, Reason} ->
-			lager:error("handle_cast: gen_tcp:listen() error:~n~p", [Reason]),
+			?LOG_ERROR("handle_cast: gen_tcp:listen() error:~n~p", [Reason]),
 			{stop, {?MODULE, ?LINE, error, Reason}, State}
 	end;
 
@@ -82,7 +82,7 @@ handle_info(Info, State) ->
 %%--------------------------------------------------------------------
 
 terminate(normal, _) -> ok;
-terminate(Reason, State) -> lager:error("terminate~nReason: ~p~nState: ~p", [Reason, State]).
+terminate(Reason, State) -> ?LOG_ERROR("terminate~nReason: ~p~nState: ~p", [Reason, State]).
 
 %%--------------------------------------------------------------------
 

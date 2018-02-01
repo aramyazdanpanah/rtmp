@@ -1,0 +1,4 @@
+## Name of the node
+-name rtmp-prod@rtmp-prod-ip
+## Cookie for distributed erlang
+-setcookie rtmp-cookie

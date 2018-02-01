@@ -17,7 +17,7 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--define(ENCODE_STATE, 
+-define(ENCODE_STATE,
 	#{
 		channel   => undefined,
 		socket    => undefined,
@@ -28,7 +28,7 @@
 		list      => []
 	}).
 
--define(STREAM_STATE, 
+-define(STREAM_STATE,
 	#{
 		sid      => undefined,
 		csid     => undefined,
@@ -46,7 +46,7 @@
 
 start(Channel, Socket, Encrypted, KeyOut) ->
 	rtmp_encode_sup:start_encode([Channel, Socket, Encrypted, KeyOut]).
-	
+
 start_link(Channel, Socket, Encrypted, KeyOut) ->
 	gen_server:start_link(?MODULE, {Channel, Socket, Encrypted, KeyOut}, []).
 
@@ -54,7 +54,7 @@ create_stream(Encode, StreamID) ->
 	gen_server:cast(Encode, {create_stream, StreamID}).
 
 send_message(Encode, StreamID, Message) ->
-	gen_server:cast(Encode, {send_message, StreamID, Message}).	
+	gen_server:cast(Encode, {send_message, StreamID, Message}).
 
 wait_mainframe(Encode) ->
 	gen_server:cast(Encode, wait_mainframe).
@@ -64,49 +64,49 @@ wait_mainframe(Encode) ->
 %%====================================================================
 
 init({Channel, Socket, Encrypted, KeyOut}) ->
-	lager:debug("Start rtmp_encode; Channel: ~p; Socket: ~p", [Channel, Socket]),
+	?LOG_DEBUG("Start rtmp_encode; Channel: ~p; Socket: ~p", [Channel, Socket]),
 	State = ?ENCODE_STATE,
 	erlang:monitor(process, Channel),
 	{ok, State#{socket => Socket, channel => Channel, encrypted => Encrypted, keyout => KeyOut}};
-	
+
 init(Args) ->
-	lager:error("init: nomatch Args:~n~p", [Args]),
+	?LOG_ERROR("init: nomatch Args:~n~p", [Args]),
 	{stop, {error, nomatch}}.
-	
+
 %%--------------------------------------------------------------------
 
 handle_call(Request, _From, State) ->
-	lager:error("handle_call: nomatch Request:~n~p", [Request]),
+	?LOG_ERROR("handle_call: nomatch Request:~n~p", [Request]),
 	Error = {error, nomatch},
 	{stop, Error, Error, State}.
-	
+
 %%--------------------------------------------------------------------
 
 handle_cast({send_message, StreamID, Message}, #{list := List} = State) ->
 	case lists:keyfind(StreamID, 1, List) of
 		false ->
-			lager:error("send_message: nomatch StreamID: ~p", [StreamID]),
+			?LOG_ERROR("send_message: nomatch StreamID: ~p", [StreamID]),
 			{stop, {error, nomatch}, State};
 		{StreamID, Stream} ->
 			case start_encode(Message, Stream, State) of
 				{ok, NewState} ->
 					{noreply, NewState};
 				{error, Reason} ->
-					lager:error("send_message error:~n~p", [Reason]),
+					?LOG_ERROR("send_message error:~n~p", [Reason]),
 					{stop, {error, Reason}, State}
 			end
 	end;
 
 handle_cast({create_stream, StreamID}, #{list := List, csid := CSID} = State) ->
 	Stream = ?STREAM_STATE,
-	lager:debug("create_stream: ~p", [StreamID]),
+	?LOG_DEBUG("create_stream: ~p", [StreamID]),
 	{noreply, State#{list => [{StreamID, Stream#{sid => StreamID, csid => CSID}} | List], csid => CSID + 1}};
 
 handle_cast(wait_mainframe, State) ->
 	{noreply, State};
 
 handle_cast(Msg, State) ->
-	lager:error("handle_cast: nomatch Msg:~n~p", [Msg]),
+	?LOG_ERROR("handle_cast: nomatch Msg:~n~p", [Msg]),
 	{stop, {error, nomatch}, State}.
 
 %%--------------------------------------------------------------------
@@ -115,13 +115,13 @@ handle_info({'DOWN', _MonRef, process, _Pid, _Info}, State) ->
 	{stop, normal, State};
 
 handle_info(Info, State) ->
-	lager:error("handle_info: nomatch Info:~n~p", [Info]),
+	?LOG_ERROR("handle_info: nomatch Info:~n~p", [Info]),
 	{stop, {error, nomatch}, State}.
-	
+
 %%--------------------------------------------------------------------
 
 terminate(Reason, _State) ->
-	lager:debug("terminate: ~p", [Reason]),
+	?LOG_DEBUG("terminate: ~p", [Reason]),
 	ok.
 
 %%--------------------------------------------------------------------
@@ -171,7 +171,7 @@ encode({type, Type, Msg}, #{csid := CSID} = Stream, State) ->
 			Bin = <<0:8, (amf0:encode_args(Msg))/binary>>,
 			encode({fmt_0, Type, byte_size(Bin), Bin}, Stream#{csid_bin => <<3:6>>}, State);
 		Type ->
-			lager:error("encode: nomatch Type: ~p", [Type]),
+			?LOG_ERROR("encode: nomatch Type: ~p", [Type]),
 			{error, nomatch}
 	end;
 
@@ -216,7 +216,7 @@ encode({send, Data}, #{sid := StreamID} = Stream, #{socket := Socket, list := Li
 		ok ->
 			{ok, State#{list => lists:keyreplace(StreamID, 1, List, {StreamID, Stream})}};
 		{error, Reason} ->
-			lager:error("encode: gen_tcp:send() error:~n~p", [Reason]),
+			?LOG_ERROR("encode: gen_tcp:send() error:~n~p", [Reason]),
 			{error, Reason}
 	end.
 

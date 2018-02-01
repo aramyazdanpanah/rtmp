@@ -1,5 +1,5 @@
 %%====================================================================
-%%% Description : RTMP decode 
+%%% Description : RTMP decode
 %%====================================================================
 
 -module(rtmp_decode).
@@ -16,18 +16,18 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--define(DECODE_STATE, 
+-define(DECODE_STATE,
 	#{
 		socket       => undefined,
 		channel      => undefined,
 		publish      => undefined,
 		encrypted    => undefined,
 		keyin        => undefined,
-		received     => 0, 
-		sended       => 0, 
-		lref         => 0, 
+		received     => 0,
+		sended       => 0,
+		lref         => 0,
 		list         => [],
-		csid         => 2, 
+		csid         => 2,
 		ackwinsize   => ?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE,
 		decode_func  => decode_basic_header,
 		chunk_stream => undefined,
@@ -36,17 +36,17 @@
 
 -define(CHUNK_STREAM_STATE(CSID, REF),
 	#{
-		stream   => undefined, 
-		sid      => undefined, 
-		csid     => CSID, 
-		ts       => undefined, 
-		tsd      => undefined, 
-		len      => 0, 
-		type     => undefined, 
-		ref      => REF, 
-		received => 0, 
+		stream   => undefined,
+		sid      => undefined,
+		csid     => CSID,
+		ts       => undefined,
+		tsd      => undefined,
+		len      => 0,
+		type     => undefined,
+		ref      => REF,
+		received => 0,
 		bufsize  => 0,
-		csize    => ?RTMP_CONST_CHUNK_SIZE, 
+		csize    => ?RTMP_CONST_CHUNK_SIZE,
 		data     => <<>>
 	}).
 
@@ -56,13 +56,13 @@
 
 start(Channel, Socket, Encrypted, KeyIn) ->
 	rtmp_decode_sup:start_decode([Channel, Socket, Encrypted, KeyIn]).
-	
+
 start_link(Channel, Socket, Encrypted, KeyIn) ->
 	gen_server:start_link(?MODULE, {Channel, Socket, Encrypted, KeyIn}, []).
 
 setAckWinSize(Decode, AckWinSize) ->
 	gen_server:cast(Decode, {setAckWinSize, AckWinSize}).
-	
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -73,27 +73,27 @@ setAckWinSize(Decode, AckWinSize) ->
 
 init({Channel, Socket, Encrypted, KeyIn}) ->
 	% Res = eprof:start_profiling([self()]),
-	% lager:debug("eprof:start_profiling(~p) return: ~p", [self(), Res]),
-	lager:debug("Start rtmp_decode; Channel: ~p; Socket: ~p", [Channel, Socket]),
+	% ?LOG_DEBUG("eprof:start_profiling(~p) return: ~p", [self(), Res]),
+    ?LOG_DEBUG("Start rtmp_decode; Channel: ~p; Socket: ~p", [Channel, Socket]),
 	erlang:monitor(process, Channel),
 	gen_server:cast(self(), recv),
 	State = ?DECODE_STATE,
 	{ok, State#{channel => Channel, socket => Socket, encrypted => Encrypted, keyin => KeyIn}};
 
 init(Args) ->
-	lager:error("init: nomatch Args:~n~p", [Args]),
+	?LOG_ERROR("init: nomatch Args:~n~p", [Args]),
 	{stop, {error, nomatch}}.
-	
+
 %%--------------------------------------------------------------------
 
 handle_call(Request, _From, State) ->
-	lager:error("handle_call: nomatch Request:~n~p", [Request]),
+	?LOG_ERROR("handle_call: nomatch Request:~n~p", [Request]),
 	Error = {error, nomatch},
 	{stop, Error, Error, State}.
-	
+
 %%--------------------------------------------------------------------
 
-handle_cast(recv, #{socket := Socket, channel := Channel, received := Received, sended := Sended} = State) ->	
+handle_cast(recv, #{socket := Socket, channel := Channel, received := Received, sended := Sended} = State) ->
 	case gen_tcp:recv(Socket, 0, 5000) of
 		{ok, Data} ->
 			gen_server:cast(self(), recv),
@@ -108,10 +108,10 @@ handle_cast(recv, #{socket := Socket, channel := Channel, received := Received, 
 			gen_server:cast(self(), recv),
 			{noreply, State};
 		{error, closed} ->
-			lager:debug("handle_cast: socket ~p closed", [Socket]),
+			?LOG_DEBUG("handle_cast: socket ~p closed", [Socket]),
 			{stop, normal, State};
 		{error, Reason} ->
-			lager:error("handle_cast: gen_tcp:recv() error:~n~p", [Reason]),
+			?LOG_ERROR("handle_cast: gen_tcp:recv() error:~n~p", [Reason]),
 			{stop, {error, Reason}, State}
 	end;
 
@@ -119,7 +119,7 @@ handle_cast({setAckWinSize, AckWinSize}, State) ->
 	{noreply, State#{ackwinsize => AckWinSize}};
 
 handle_cast(Msg, State) ->
-	lager:error("handle_cast: nomatch Msg:~n~p~nState: ~p", [Msg, State]),
+	?LOG_ERROR("handle_cast: nomatch Msg:~n~p~nState: ~p", [Msg, State]),
 	{stop, {error, nomatch}, State}.
 
 %%--------------------------------------------------------------------
@@ -128,16 +128,16 @@ handle_info({'DOWN', _MonRef, process, _Pid, _Info}, State) ->
 	{stop, normal, State};
 
 handle_info(Info, State) ->
-	lager:error("handle_info: nomatch Info:~n~p", [Info]),
+	?LOG_ERROR("handle_info: nomatch Info:~n~p", [Info]),
 	{stop, {error, nomatch}, State}.
-	
+
 %%--------------------------------------------------------------------
 
 terminate(Reason, #{socket := Socket}) ->
 	% Res = eprof:stop_profiling(),
-	% lager:debug("eprof:stop_profiling() return: ~p", [Res]),
+	% ?LOG_DEBUG("eprof:stop_profiling() return: ~p", [Res]),
 	catch gen_tcp:close(Socket),
-	lager:debug("terminate: ~p", [Reason]),
+	?LOG_DEBUG("terminate: ~p", [Reason]),
 	ok.
 
 %%--------------------------------------------------------------------
@@ -175,7 +175,7 @@ decode_basic_header(State, CS, Buf)											-> {noreply, State#{decode_func =>
 decode_chunk_stream_id(#{list := List, rcsid := CSID} = State, undefined, Buf) ->
 	NewCS = ?CHUNK_STREAM_STATE(CSID, erlang:make_ref()),
 	decode_message_header(State#{list => [{CSID, NewCS} | List]}, NewCS, Buf);
-decode_chunk_stream_id(#{rcsid := CSID} = State, #{csid := CSID} = CS, Buf) -> 
+decode_chunk_stream_id(#{rcsid := CSID} = State, #{csid := CSID} = CS, Buf) ->
 	decode_message_header(State, CS, Buf);
 decode_chunk_stream_id(#{list := List, rcsid := RCSID} = State, #{csid := CSID} = CS, Buf) ->
 	case lists:keyfind(RCSID, 1, List) of
@@ -185,7 +185,7 @@ decode_chunk_stream_id(#{list := List, rcsid := RCSID} = State, #{csid := CSID} 
 		{RCSID, NextCS} ->
 			decode_message_header(State#{list => lists:keyreplace(CSID, 1, List, {CSID, CS})}, NextCS, Buf)
 	end.
-	
+
 decode_message_header(#{rfmt := 0} = State, CS, <<Ts:24,  Len:24, Type:8, Sid:8, _Bin:24, Buf/binary>>)	-> decode_chunk_payload(State, CS#{ts  => Ts,  len => Len, type => Type, sid => Sid}, Buf);
 decode_message_header(#{rfmt := 1} = State, CS, <<Tsd:24, Len:24, Type:8, Buf/binary>>)					-> decode_chunk_payload(State, CS#{tsd => Tsd, len => Len, type => Type}, Buf);
 decode_message_header(#{rfmt := 2} = State, CS, <<Tsd:24, Buf/binary>>)									-> decode_chunk_payload(State, CS#{tsd => Tsd}, Buf);
@@ -214,7 +214,7 @@ decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
 				0 -> amf0:decode_args(Bin);
 				3 -> amf:decode(3, Bin);
 				Code ->
-					lager:error("decode: nomatch type code for AMF3 command: ~p; Chunk stream:~n~p", [Code, CS]),
+					?LOG_ERROR("decode: nomatch type code for AMF3 command: ~p; Chunk stream:~n~p", [Code, CS]),
 					{stop, {error, nomatch}, State#{chunk_stream => CS}}
 			end,
 			send_message(State, CS#{data => <<>>}, Buf, {command, Msg});
@@ -245,10 +245,10 @@ decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
 		?RTMP_MSG_VIDEO ->
 			send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_VIDEO}});
 		ANY_TYPE ->
-			lager:error("Unknown type number: ~p", [ANY_TYPE]),
+			?LOG_ERROR("Unknown type number: ~p", [ANY_TYPE]),
 			{stop, {error, nomatch}, State#{chunk_stream => CS, buffer => Buf}}
 	end.
-	
+
 send_message(#{channel := Channel} = State, #{sid := SID} = CS, Buf, Message) ->
 	rtmp_channel:message(Channel, SID, Message),
 	decode_basic_header(State, CS, Buf).

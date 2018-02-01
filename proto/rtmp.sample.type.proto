@@ -1,0 +1,4 @@
+package rtmp.sample.type;
+// messageCode = 001
+message  Type {
+}

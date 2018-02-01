@@ -31,7 +31,7 @@
 	accept_play/2,
 	reject_play/2,
 	message/3
-	% start/0, 
+	% start/0,
 	% stop/0
 ]).
 
@@ -54,7 +54,7 @@
 
 start(_Type, _Args) ->
 	% Res = eprof:start(),
-	% lager:debug("eprof:start() return: ~p", [Res]),
+	% ?LOG_DEBUG("eprof:start() return: ~p", [Res]),
 	rtmp_sup:start().
 
 stop(_State) ->
@@ -89,7 +89,7 @@ message(Channel, StreamRef, Message) ->
 % start() ->
 % 	application:load(?APPLICATION),
 % 	application:start(?APPLICATION).
-	
+
 % stop() ->
 % 	application:stop(?APPLICATION),
 % 	application:unload(?APPLICATION).
@@ -100,18 +100,18 @@ message(Channel, StreamRef, Message) ->
 
 response(CMD, TrID, Properties, Information) ->
 	[{?STRING, CMD}, TrID, Properties, Information].
-	
+
 status(Code, Description, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "status"}}, 
-		{{?STRING, "code"}, 		{?STRING, Code}}, 
+		{{?STRING, "level"}, 		{?STRING, "status"}},
+		{{?STRING, "code"}, 		{?STRING, Code}},
 		{{?STRING, "description"}, 	{?STRING, Description}},
 		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
 	]}.
 status(Code, Description, Details, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "status"}}, 
-		{{?STRING, "code"}, 		{?STRING, Code}}, 
+		{{?STRING, "level"}, 		{?STRING, "status"}},
+		{{?STRING, "code"}, 		{?STRING, Code}},
 		{{?STRING, "description"}, 	{?STRING, Description}},
 		{{?STRING, "details"}, 		{?STRING, Details}},
 		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
@@ -119,16 +119,16 @@ status(Code, Description, Details, ClientID) ->
 
 error(Code, Description, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "error"}}, 
-		{{?STRING, "code"}, 		{?STRING, Code}}, 
+		{{?STRING, "level"}, 		{?STRING, "error"}},
+		{{?STRING, "code"}, 		{?STRING, Code}},
 		{{?STRING, "description"}, 	{?STRING, Description}},
 		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
 	]}.
 
 error(Code, Description, Details, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "error"}}, 
-		{{?STRING, "code"}, 		{?STRING, Code}}, 
+		{{?STRING, "level"}, 		{?STRING, "error"}},
+		{{?STRING, "code"}, 		{?STRING, Code}},
 		{{?STRING, "description"}, 	{?STRING, Description}},
 		{{?STRING, "details"}, 		{?STRING, Details}},
 		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
@@ -153,7 +153,7 @@ cmd(?RTMP_CMD_AMF0_RESULT_CONNECT, {TrID}) ->
 			{{?STRING, "version"},			{?STRING, "3,5,1,516"}}
 		]},
 	{?RTMP_MSG_COMMAND_AMF0, response("_result", TrID, Properties, Information)};
-	
+
 cmd(?RTMP_CMD_AMF0_RESULT_CREATE_STREAM, {TrID, N}) ->
 	{?RTMP_MSG_COMMAND_AMF0, response("_result", TrID, null, N)};
 
@@ -164,33 +164,33 @@ cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_START, {Name, ID}) ->
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_BADNAME, {Name, ID}) ->
 	Information = error("NetStream.Publish.BadName", Name ++ " is not published.", ID),
 	{?RTMP_MSG_COMMAND_AMF3, response("onStatus", 0.0, null, Information)};
-	
+
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_UNPUBLISH_SUCCESS, {Name, ID}) ->
 	Information = status("NetStream.Unpublish.Success", Name ++ " is now unpublished.", ID),
 	{?RTMP_MSG_COMMAND_AMF0, response("onStatus", 0, null, Information)};
-	
+
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_START, {Name, ID}) ->
 	Information = status("NetStream.Play.Start", "Started playing " ++ Name, Name, ID),
 	{?RTMP_MSG_COMMAND_AMF0, response("onStatus", 0, null, Information)};
-	
+
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_RESET, {Name, ID}) ->
 	Information = status("NetStream.Play.Reset", "!Playing and resetting " ++ Name, Name, ID),
 	{?RTMP_MSG_COMMAND_AMF0, response("onStatus", 0, null, Information)};
-	
+
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_STOP, {Name, ID}) ->
 	Information = status("NetStream.Play.Stop", "Stopped playing " ++ Name, Name, ID),
 	{?RTMP_MSG_COMMAND_AMF0, response("onStatus", 0, null, Information)};
-	
+
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_FAILED, {Name, ID}) ->
 	Information = error("NetStream.Play.Failed", "Failed playing " ++ Name, Name, ID),
 	{?RTMP_MSG_COMMAND_AMF3, response("onStatus", 0.0, null, Information)};
 
 cmd(?RTMP_CMD_AMF0_RTMPSAMPLEACCESS, _) ->
 	{?RTMP_MSG_DATA_AMF0, [{?STRING, "|RtmpSampleAccess"}, false, false]};
-	
+
 cmd(_N, _Args) ->
 	{?RTMP_MSG_COMMAND_AMF0, []}.
-	
+
 %%--------------------------------------------------------------------
 
 stream() ->
@@ -221,7 +221,7 @@ get_env(Key, Def) ->
 		undefined -> Def;
 		{ok, Val} -> Val;
 		{'EXIT', Reason} ->
-			lager:error("get_env: EXIT:~n~p", [Reason]),
+			?LOG_ERROR("get_env: EXIT:~n~p", [Reason]),
 			Def
 	end.
 
@@ -229,13 +229,13 @@ get_id() ->
 	{A1,A2,A3} = now(),
 	random:seed(A1, A2, A3),
 	get_id(10, []).
-	
+
 get_id(0, List) ->
 	List;
-	
+
 get_id(N, List) ->
 	get_id(N-1, [get_char() | List]).
-	
+
 get_char() ->
 	N = random:uniform(52),
 	case (N < 27) of

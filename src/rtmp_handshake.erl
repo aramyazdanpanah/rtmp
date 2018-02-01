@@ -32,13 +32,13 @@
 	  16#ae, 16#9f, 16#24, 16#11, 16#7c, 16#4b, 16#1f, 16#e6,
 	  16#49, 16#28, 16#66, 16#51, 16#ec, 16#e6, 16#53, 16#81,
 	  16#ff, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff, 16#ff>>).
--define(GENUINE_FMS_KEY, 
+-define(GENUINE_FMS_KEY,
 	<<"Genuine Adobe Flash Media Server 001",
 	  16#f0, 16#ee, 16#c2, 16#4a, 16#80, 16#68, 16#be, 16#e8,
 	  16#2e, 16#00, 16#d0, 16#d1, 16#02, 16#9e, 16#7e, 16#57,
 	  16#6e, 16#ec, 16#5d, 16#2d, 16#29, 16#80, 16#6f, 16#ab,
 	  16#93, 16#b8, 16#e6, 16#36, 16#cf, 16#eb, 16#31, 16#ae>>).
--define(GENUINE_FP_KEY, 
+-define(GENUINE_FP_KEY,
 	<<"Genuine Adobe Flash Player 001",
 	  16#F0, 16#EE, 16#C2, 16#4A, 16#80, 16#68, 16#BE, 16#E8,
 	  16#2E, 16#00, 16#D0, 16#D1, 16#02, 16#9E, 16#7E, 16#57,
@@ -48,7 +48,7 @@
 %% API external functions
 -export([init/1]).
 
--define(HANDSHAKE_STATE, 
+-define(HANDSHAKE_STATE,
 	#{
 		socket      => undefined,
 		version     => undefined,
@@ -77,17 +77,17 @@ handshake(handshake_C0, #{socket := Socket} = State) ->
 		{ok, <<Version:8>>} ->
 			case Version of
 				?RTMP_UNCRYPTED_CONNECTION ->
-					lager:debug("handshake: RTMP connection"),
+					?LOG_DEBUG("handshake: RTMP connection", []),
 					handshake(handshake_C1, State#{version => Version});
 				?RTMP_ENCRYPTED_CONNECTION ->
-					lager:debug("handshake: RTMPE connection"),
+					?LOG_DEBUG("handshake: RTMPE connection", []),
 					handshake(handshake_C1, State#{version => Version, encrypted => true});
 				true ->
-					lager:error("handshake: nomatch Version: ~p", [Version]),
+					?LOG_ERROR("handshake: nomatch Version: ~p", [Version]),
 					{error, nomatch}
 			end;
 		{error, Reason} ->
-			lager:error("handshake: gen_tcp:recv() error:~n~p", [Reason]),
+			?LOG_ERROR("handshake: gen_tcp:recv() error:~n~p", [Reason]),
 			{error, Reason}
 	end;
 
@@ -97,7 +97,7 @@ handshake(handshake_C1, #{socket := Socket} = State) ->
 			Type = get_client_type(C1),
 			handshake({handshake_S0, C1}, State#{client_type => Type});
 		{error, Reason} ->
-			lager:error("handshake: gen_tcp:recv() error:~n~p", [Reason]),
+			?LOG_ERROR("handshake: gen_tcp:recv() error:~n~p", [Reason]),
 			{error, Reason}
 	end;
 
@@ -125,13 +125,13 @@ handshake({handshake_S1_S2, Response, C1}, #{socket := Socket, version := Versio
 	TempHash = hmac256:digest_bin(?GENUINE_FMS_KEY, ClientDigest),
 	ClientHash = hmac256:digest_bin(TempHash, Response2),
 	S2 = <<Response2/binary, ClientHash/binary>>,
-	
+
 	case gen_tcp:send(Socket, <<Version:8, S1/binary, S2/binary>>) of
 		ok ->
-			% lager:debug("handshake: send S1 and S2 ok"),
+			% ?LOG_DEBUG("handshake: send S1 and S2 ok"),
 			handshake(handshake_C2, State);
 		{error, Reason} ->
-			lager:error("handshake: gen_tcp:send() error:~n~p", [Reason]),
+			?LOG_ERROR("handshake: gen_tcp:send() error:~n~p", [Reason]),
 			{error, Reason}
 	end;
 
@@ -140,7 +140,7 @@ handshake(handshake_C2, #{socket := Socket, encrypted := Encrypted, keyin := Key
 		{ok, _C2} ->
 			{ok, {Encrypted, KeyIn, KeyOut}};
 		{error, Reason} ->
-			lager:error("handshake: gen_tcp:recv() error:~n~p", [Reason]),
+			?LOG_ERROR("handshake: gen_tcp:recv() error:~n~p", [Reason]),
 			{error, Reason}
 	end.
 
@@ -149,10 +149,10 @@ handshake(handshake_C2, #{socket := Socket, encrypted := Encrypted, keyin := Key
 get_client_type(C1) ->
 	case check_client_type(?FLASH_CLIENT_OLD, C1) of
 		true -> ?FLASH_CLIENT_OLD;
-		false -> 
+		false ->
 			case check_client_type(?FLASH_CLIENT_NEW, C1) of
 				true -> ?FLASH_CLIENT_NEW;
-				false -> ?FLASH_CLIENT_OLD	
+				false -> ?FLASH_CLIENT_OLD
 			end
 	end.
 
@@ -163,12 +163,12 @@ check_client_type(Type, C1) ->
 
 client_digest(?FLASH_CLIENT_OLD, <<_:8/binary, P1, P2, P3, P4, _/binary>> = C1) -> % Flash before 10.0.32.18
 	Offset = (P1+P2+P3+P4) rem 728 + 12,
-	% lager:debug("client_digest: Offset: ~p; ~p", [Offset, {P1, P2, P3, P4}]),
+	% ?LOG_DEBUG("client_digest: Offset: ~p; ~p", [Offset, {P1, P2, P3, P4}]),
 	client_digest(Offset, C1);
 
 client_digest(?FLASH_CLIENT_NEW, <<_:772/binary, P1, P2, P3, P4, _/binary>> = C1) -> % Flash from 10.0.32.18
 	Offset = (P1+P2+P3+P4) rem 728 + 776,
-	% lager:debug("client_digest: Offset: ~p; ~p", [Offset, {P1, P2, P3, P4}]),
+	% ?LOG_DEBUG("client_digest: Offset: ~p; ~p", [Offset, {P1, P2, P3, P4}]),
 	client_digest(Offset, C1);
 
 client_digest(Offset, C1) ->

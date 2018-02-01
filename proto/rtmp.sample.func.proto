@@ -1,0 +1,5 @@
+package rtmp.sample.func;
+import "rtmp.sample.type.proto";
+// messageCode = 101
+message Call {
+}
