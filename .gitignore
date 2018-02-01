@@ -25,12 +25,4 @@ rebar3.crashdump
 
 tmp
 
-src/corolla_pb_glob_*.erl
-src/corolla_pb_core_*.erl
-src/corolla_pb_data_*.erl
-src/ingw_*
-include/corolla_pb_glob_*.hrl
-include/corolla_pb_core_*.hrl
-include/corolla_pb_data_*.hrl
-include/ingw_*
 compile_commands.json
