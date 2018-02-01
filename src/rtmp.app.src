@@ -1,6 +1,6 @@
 {application, rtmp,
  [{description, "An OTP application"},
-  {vsn, "0.1.0"},
+  {vsn, "0.0.1"},
   {registered, []},
   {mod, {rtmp_app, []}},
   {applications, [kernel]},

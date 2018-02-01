@@ -20,25 +20,25 @@
 -define(CMDSID, 0).
 
 -define(NEW_STATE,
-	#{	socket       => undefined,
-		decode       => undefined,
-		encode       => undefined,
-		connected    => false,
-		sid          => 0,
-		list         => [],
-		publish_list => []}).
+        #{	socket       => undefined,
+            decode       => undefined,
+            encode       => undefined,
+            connected    => false,
+            sid          => 0,
+            list         => [],
+            publish_list => []}).
 
 -define(NEW_STREAM,
-	#{	sid     => undefined,
-		publish => undefined,
-		csid    => undefined,
-		monref  => undefined,
-		ref     => undefined,
-		name    => undefined,
-		gsid    => undefined,
-		pubmgr  => undefined,
-		play    => false,
-		list    => []}).
+        #{	sid     => undefined,
+            publish => undefined,
+            csid    => undefined,
+            monref  => undefined,
+            ref     => undefined,
+            name    => undefined,
+            gsid    => undefined,
+            pubmgr  => undefined,
+            play    => false,
+            list    => []}).
 
 %%====================================================================
 %% API
@@ -191,7 +191,7 @@ stream_message({command, [{?STRING, CMD}, 0.0, null, Params]}, _Stream, State) -
 
 stream_message({acknowledgement_window_size, AckWinSize}, _Stream, #{encode := Encode, decode := Decode} = State) ->
 	rtmp_decode:setAckWinSize(Decode, AckWinSize),
-	% rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_PCM_SET_CHUNK_SIZE(4096)),
+                                                % rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_PCM_SET_CHUNK_SIZE(4096)),
 	rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_UCM_STREAM_BEGIN(0)),
 	rtmp_encode:send_message(Encode, ?CMDSID, rtmp:cmd(?RTMP_CMD_AMF0_RESULT_CONNECT, {1})),
 	{noreply, State};
@@ -238,7 +238,7 @@ stream_message({publish, _}, _Stream, State) ->
 	{noreply, State};
 
 stream_message({data, Data, Type}, #{sid := SID}, #{encode := Encode} = State) ->
-	% ?LOG_DEBUG("Play data: <<~w>>; Type: ~w", [byte_size(Data), Type]),
+                                                % ?LOG_DEBUG("Play data: <<~w>>; Type: ~w", [byte_size(Data), Type]),
 	rtmp_encode:send_message(Encode, SID, {Type, Data}),
 	{noreply, State};
 

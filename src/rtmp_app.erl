@@ -17,44 +17,44 @@
 %% Application callbacks
 
 -export([
-	start/2,
-	stop/1
-]).
+         start/2,
+         stop/1
+        ]).
 
 %% External API functions
 
 -export([
-	accept_connection/1,
-	reject_connection/1,
-	accept_publish/3,
-	reject_publish/2,
-	accept_play/2,
-	reject_play/2,
-	message/3
-	% start/0,
-	% stop/0
-]).
+         accept_connection/1,
+         reject_connection/1,
+         accept_publish/3,
+         reject_publish/2,
+         accept_play/2,
+         reject_play/2,
+         message/3
+                                                % start/0,
+                                                % stop/0
+        ]).
 
 -export([
-	get_env/2,
-	response/4,
-	status/3,
-	status/4,
-	cmd/2,
-	stream/0,
-	stream/1,
-	streams/1,
-	string/1,
-	get_id/0
-]).
+         get_env/2,
+         response/4,
+         status/3,
+         status/4,
+         cmd/2,
+         stream/0,
+         stream/1,
+         streams/1,
+         string/1,
+         get_id/0
+        ]).
 
 %%==============================================================================================================================================
 %% Application callbacks
 %%==============================================================================================================================================
 
 start(_Type, _Args) ->
-	% Res = eprof:start(),
-	% ?LOG_DEBUG("eprof:start() return: ~p", [Res]),
+                                                % Res = eprof:start(),
+                                                % ?LOG_DEBUG("eprof:start() return: ~p", [Res]),
 	rtmp_sup:start().
 
 stop(_State) ->
@@ -86,13 +86,13 @@ reject_play(Channel, StreamRef) ->
 message(Channel, StreamRef, Message) ->
 	gen_server:cast(Channel, {message, external, StreamRef, Message}).
 
-% start() ->
-% 	application:load(?APPLICATION),
-% 	application:start(?APPLICATION).
+                                                % start() ->
+                                                % 	application:load(?APPLICATION),
+                                                % 	application:start(?APPLICATION).
 
-% stop() ->
-% 	application:stop(?APPLICATION),
-% 	application:unload(?APPLICATION).
+                                                % stop() ->
+                                                % 	application:stop(?APPLICATION),
+                                                % 	application:unload(?APPLICATION).
 
 %%==============================================================================================================================================
 %% Internal API functions
@@ -103,36 +103,36 @@ response(CMD, TrID, Properties, Information) ->
 
 status(Code, Description, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "status"}},
-		{{?STRING, "code"}, 		{?STRING, Code}},
-		{{?STRING, "description"}, 	{?STRING, Description}},
-		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
-	]}.
+           {{?STRING, "level"}, 		{?STRING, "status"}},
+           {{?STRING, "code"}, 		{?STRING, Code}},
+           {{?STRING, "description"}, 	{?STRING, Description}},
+           {{?STRING, "clientid"}, 	{?STRING, ClientID}}
+          ]}.
 status(Code, Description, Details, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "status"}},
-		{{?STRING, "code"}, 		{?STRING, Code}},
-		{{?STRING, "description"}, 	{?STRING, Description}},
-		{{?STRING, "details"}, 		{?STRING, Details}},
-		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
-	]}.
+           {{?STRING, "level"}, 		{?STRING, "status"}},
+           {{?STRING, "code"}, 		{?STRING, Code}},
+           {{?STRING, "description"}, 	{?STRING, Description}},
+           {{?STRING, "details"}, 		{?STRING, Details}},
+           {{?STRING, "clientid"}, 	{?STRING, ClientID}}
+          ]}.
 
 error(Code, Description, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "error"}},
-		{{?STRING, "code"}, 		{?STRING, Code}},
-		{{?STRING, "description"}, 	{?STRING, Description}},
-		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
-	]}.
+           {{?STRING, "level"}, 		{?STRING, "error"}},
+           {{?STRING, "code"}, 		{?STRING, Code}},
+           {{?STRING, "description"}, 	{?STRING, Description}},
+           {{?STRING, "clientid"}, 	{?STRING, ClientID}}
+          ]}.
 
 error(Code, Description, Details, ClientID) ->
 	{map, [
-		{{?STRING, "level"}, 		{?STRING, "error"}},
-		{{?STRING, "code"}, 		{?STRING, Code}},
-		{{?STRING, "description"}, 	{?STRING, Description}},
-		{{?STRING, "details"}, 		{?STRING, Details}},
-		{{?STRING, "clientid"}, 	{?STRING, ClientID}}
-	]}.
+           {{?STRING, "level"}, 		{?STRING, "error"}},
+           {{?STRING, "code"}, 		{?STRING, Code}},
+           {{?STRING, "description"}, 	{?STRING, Description}},
+           {{?STRING, "details"}, 		{?STRING, Details}},
+           {{?STRING, "clientid"}, 	{?STRING, ClientID}}
+          ]}.
 
 %%--------------------------------------------------------------------
 
@@ -141,17 +141,17 @@ cmd(?RTMP_CMD_AMF0, {Command, Params}) ->
 
 cmd(?RTMP_CMD_AMF0_RESULT_CONNECT, {TrID}) ->
 	Properties = {map, [
-			{{?STRING, "fmsVer"},			{?STRING, "FMS/3,5,1,516"}},
-			{{?STRING, "capabilities"},		31},
-			{{?STRING, "mode"},				1}
-		]},
+                        {{?STRING, "fmsVer"},			{?STRING, "FMS/3,5,1,516"}},
+                        {{?STRING, "capabilities"},		31},
+                        {{?STRING, "mode"},				1}
+                       ]},
 	Information = {map, [
-			{{?STRING, "level"},			{?STRING, "status"}},
-			{{?STRING, "code"},				{?STRING, "NetConnection.Connect.Success"}},
-			{{?STRING, "objectEncoding"},	3},
-			{{?STRING, "data"},				null},
-			{{?STRING, "version"},			{?STRING, "3,5,1,516"}}
-		]},
+                         {{?STRING, "level"},			{?STRING, "status"}},
+                         {{?STRING, "code"},				{?STRING, "NetConnection.Connect.Success"}},
+                         {{?STRING, "objectEncoding"},	3},
+                         {{?STRING, "data"},				null},
+                         {{?STRING, "version"},			{?STRING, "3,5,1,516"}}
+                        ]},
 	{?RTMP_MSG_COMMAND_AMF0, response("_result", TrID, Properties, Information)};
 
 cmd(?RTMP_CMD_AMF0_RESULT_CREATE_STREAM, {TrID, N}) ->
@@ -209,11 +209,11 @@ streams([]) ->
 	{ok, []};
 streams(List) ->
 	Streams = lists:foldl(fun(GSID, Acc) ->
-		case gproc:lookup_local_name(GSID) of
-			undefined -> Acc;
-			Stream -> [Stream | Acc]
-		end
-	end, [], List),
+                                  case gproc:lookup_local_name(GSID) of
+                                      undefined -> Acc;
+                                      Stream -> [Stream | Acc]
+                                  end
+                          end, [], List),
 	{ok, Streams}.
 
 get_env(Key, Def) ->

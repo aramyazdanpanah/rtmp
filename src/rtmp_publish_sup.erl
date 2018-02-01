@@ -35,7 +35,5 @@ start_child() ->
 
 init([]) ->
 	{ok, {{simple_one_for_one, 1, 10}, [
-		{undefined, {gen_event, start_link, []}, temporary, 1000, worker, dynamic}
-	]}}.
-
-	
+                                        {undefined, {gen_event, start_link, []}, temporary, 1000, worker, dynamic}
+                                       ]}}.

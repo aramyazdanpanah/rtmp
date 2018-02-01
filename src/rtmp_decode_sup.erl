@@ -35,7 +35,5 @@ start_decode(Args) ->
 
 init([]) ->
 	{ok, {{simple_one_for_one, 1, 10}, [
-		{undefined, {rtmp_decode, start_link, []}, temporary, 1000, worker, [rtmp_decode]}
-	]}}.
-
-	
+                                        {undefined, {rtmp_decode, start_link, []}, temporary, 1000, worker, [rtmp_decode]}
+                                       ]}}.

@@ -35,7 +35,5 @@ start_encode(Args) ->
 
 init([]) ->
 	{ok, {{simple_one_for_one, 1, 10}, [
-		{undefined, {rtmp_encode, start_link, []}, temporary, 1000, worker, [rtmp_encode]}
-	]}}.
-
-	
+                                        {undefined, {rtmp_encode, start_link, []}, temporary, 1000, worker, [rtmp_encode]}
+                                       ]}}.

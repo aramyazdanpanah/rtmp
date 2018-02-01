@@ -17,38 +17,38 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -define(DECODE_STATE,
-	#{
-		socket       => undefined,
-		channel      => undefined,
-		publish      => undefined,
-		encrypted    => undefined,
-		keyin        => undefined,
-		received     => 0,
-		sended       => 0,
-		lref         => 0,
-		list         => [],
-		csid         => 2,
-		ackwinsize   => ?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE,
-		decode_func  => decode_basic_header,
-		chunk_stream => undefined,
-		buffer       => <<>>
-	}).
+        #{
+          socket       => undefined,
+          channel      => undefined,
+          publish      => undefined,
+          encrypted    => undefined,
+          keyin        => undefined,
+          received     => 0,
+          sended       => 0,
+          lref         => 0,
+          list         => [],
+          csid         => 2,
+          ackwinsize   => ?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE,
+          decode_func  => decode_basic_header,
+          chunk_stream => undefined,
+          buffer       => <<>>
+         }).
 
 -define(CHUNK_STREAM_STATE(CSID, REF),
-	#{
-		stream   => undefined,
-		sid      => undefined,
-		csid     => CSID,
-		ts       => undefined,
-		tsd      => undefined,
-		len      => 0,
-		type     => undefined,
-		ref      => REF,
-		received => 0,
-		bufsize  => 0,
-		csize    => ?RTMP_CONST_CHUNK_SIZE,
-		data     => <<>>
-	}).
+        #{
+           stream   => undefined,
+           sid      => undefined,
+           csid     => CSID,
+           ts       => undefined,
+           tsd      => undefined,
+           len      => 0,
+           type     => undefined,
+           ref      => REF,
+           received => 0,
+           bufsize  => 0,
+           csize    => ?RTMP_CONST_CHUNK_SIZE,
+           data     => <<>>
+         }).
 
 %%====================================================================
 %% API
@@ -72,8 +72,8 @@ setAckWinSize(Decode, AckWinSize) ->
 %%--------------------------------------------------------------------
 
 init({Channel, Socket, Encrypted, KeyIn}) ->
-	% Res = eprof:start_profiling([self()]),
-	% ?LOG_DEBUG("eprof:start_profiling(~p) return: ~p", [self(), Res]),
+                                                % Res = eprof:start_profiling([self()]),
+                                                % ?LOG_DEBUG("eprof:start_profiling(~p) return: ~p", [self(), Res]),
     ?LOG_DEBUG("Start rtmp_decode; Channel: ~p; Socket: ~p", [Channel, Socket]),
 	erlang:monitor(process, Channel),
 	gen_server:cast(self(), recv),
@@ -134,8 +134,8 @@ handle_info(Info, State) ->
 %%--------------------------------------------------------------------
 
 terminate(Reason, #{socket := Socket}) ->
-	% Res = eprof:stop_profiling(),
-	% ?LOG_DEBUG("eprof:stop_profiling() return: ~p", [Res]),
+                                                % Res = eprof:stop_profiling(),
+                                                % ?LOG_DEBUG("eprof:stop_profiling() return: ~p", [Res]),
 	catch gen_tcp:close(Socket),
 	?LOG_DEBUG("terminate: ~p", [Reason]),
 	ok.
@@ -211,12 +211,12 @@ decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
 		?RTMP_MSG_COMMAND_AMF3 ->
 			<<AmfType:8, Bin/binary>> = Data,
 			Msg = case AmfType of
-				0 -> amf0:decode_args(Bin);
-				3 -> amf:decode(3, Bin);
-				Code ->
-					?LOG_ERROR("decode: nomatch type code for AMF3 command: ~p; Chunk stream:~n~p", [Code, CS]),
-					{stop, {error, nomatch}, State#{chunk_stream => CS}}
-			end,
+                      0 -> amf0:decode_args(Bin);
+                      3 -> amf:decode(3, Bin);
+                      Code ->
+                          ?LOG_ERROR("decode: nomatch type code for AMF3 command: ~p; Chunk stream:~n~p", [Code, CS]),
+                          {stop, {error, nomatch}, State#{chunk_stream => CS}}
+                  end,
 			send_message(State, CS#{data => <<>>}, Buf, {command, Msg});
 		?RTMP_PCM_USER_CONTROL_MESSAGE ->
 			<<EventType:16, EventData/binary>> = Data,

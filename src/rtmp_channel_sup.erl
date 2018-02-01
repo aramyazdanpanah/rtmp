@@ -35,7 +35,5 @@ start_channel(Args) ->
 
 init([]) ->
 	{ok, {{simple_one_for_one, 1, 10}, [
-		{undefined, {rtmp_channel, start_link, []}, temporary, 1000, worker, [rtmp_channel]}
-	]}}.
-
-	
+                                        {undefined, {rtmp_channel, start_link, []}, temporary, 1000, worker, [rtmp_channel]}
+                                       ]}}.

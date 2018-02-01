@@ -18,27 +18,27 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -define(ENCODE_STATE,
-	#{
-		channel   => undefined,
-		socket    => undefined,
-		keyout    => undefined,
-		encrypted => false,
-		csid      => 3,
-		csize     => ?RTMP_CONST_CHUNK_SIZE,
-		list      => []
-	}).
+        #{
+          channel   => undefined,
+          socket    => undefined,
+          keyout    => undefined,
+          encrypted => false,
+          csid      => 3,
+          csize     => ?RTMP_CONST_CHUNK_SIZE,
+          list      => []
+         }).
 
 -define(STREAM_STATE,
-	#{
-		sid      => undefined,
-		csid     => undefined,
-		csid_bin => undefined,
-		type     => 0,
-		len      => 0,
-		fts      => undefined,
-		ts       => undefined,
-		tsd      => 0
-	}).
+        #{
+          sid      => undefined,
+          csid     => undefined,
+          csid_bin => undefined,
+          type     => 0,
+          len      => 0,
+          fts      => undefined,
+          ts       => undefined,
+          tsd      => 0
+         }).
 
 %%====================================================================
 %% API functions
