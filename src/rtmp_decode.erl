@@ -236,10 +236,10 @@ decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
 			end;
 		?RTMP_PCM_ACKNOWLEDGEMENT_WINDOW_SIZE ->
 			<<Size:32>> = Data,
-			send_message(State, CS#{data => <<>>}, Buf, {asknowledgement_window_size, Size});
+			send_message(State, CS#{data => <<>>}, Buf, {acknowledgement_window_size, Size});
 		?RTMP_PCM_ACKNOWLEDGEMENT ->
 			<<Size:32>> = Data,
-			send_message(State, CS#{data => <<>>}, Buf, {asknowledgement, Size});
+			send_message(State, CS#{data => <<>>}, Buf, {acknowledgement, Size});
 		?RTMP_MSG_AUDIO ->
 			send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_AUDIO}});
 		?RTMP_MSG_VIDEO ->

@@ -189,7 +189,7 @@ stream_message({command, [{?STRING, CMD}, 0.0, null, Params]}, _Stream, State) -
 	rtmp_event:notify({rtmp_event, self(), {command, CMD, Params}}),
 	{noreply, State};
 
-stream_message({asknowledgement_window_size, AckWinSize}, _Stream, #{encode := Encode, decode := Decode} = State) ->
+stream_message({acknowledgement_window_size, AckWinSize}, _Stream, #{encode := Encode, decode := Decode} = State) ->
 	rtmp_decode:setAckWinSize(Decode, AckWinSize),
 	% rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_PCM_SET_CHUNK_SIZE(4096)),
 	rtmp_encode:send_message(Encode, ?CMDSID, ?RTMP_CMD_UCM_STREAM_BEGIN(0)),

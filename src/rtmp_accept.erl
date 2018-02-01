@@ -29,7 +29,7 @@ start_link() ->
 
 init([]) ->
 	self() ! listen,
-	Port = rtmp:get_env(rtmp_listen_port, 1935),
+	Port = 1935,
 	{ok, #{listened => false, lport => Port}};
 
 init(Args) ->
