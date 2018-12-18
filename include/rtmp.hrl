@@ -3,6 +3,8 @@
 -ifndef(HEADER_RTMP).
 -define(HEADER_RTMP, true).
 
+-define(PUBLISHER_ACTOR_PREFIX, publisher_actor).
+
 -define(APPLICATION, rtmp).
 -define(SERVER, rtmp).
 -define(ACCEPT, rtmp_accept).
@@ -46,6 +48,7 @@
 -define(RTMP_MSG_SHARED_OBJECT_AMF3, 				16).
 -define(RTMP_MSG_COMMAND_AMF3,						17).
 -define(RTMP_MSG_DATA_AMF0, 						18).
+-define(RTMP_MSG_DATA_AMF0_BIN, 					100).
 -define(RTMP_MSG_SHARED_OBJECT_AMF0, 				19).
 -define(RTMP_MSG_COMMAND_AMF0, 						20).
 -define(RTMP_MSG_AGGREGATE,	 						22).
@@ -60,11 +63,11 @@
 -define(RTMP_CMD_PCM_SET_CHUNK_SIZE(Size),					{?RTMP_PCM_SET_CHUNK_SIZE, Size}).
 -define(RTMP_CMD_PCM_ACKNOWLEDGEMENT(Size),					{?RTMP_PCM_ACKNOWLEDGEMENT, Size}).
 -define(RTMP_CMD_PCM_ACKNOWLEDGEMENT_WINDOW_SIZE,			{?RTMP_PCM_ACKNOWLEDGEMENT_WINDOW_SIZE,
-																?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE}).
+                                                             ?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE}).
 -define(RTMP_CMD_PCM_SET_PEER_BANDWIDTH,					{?RTMP_PCM_SET_PEER_BANDWIDTH,
-																{?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE, 2}}).
+                                                             {?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE, 2}}).
 -define(RTMP_CMD_UCM_STREAM_BEGIN(N), 						{?RTMP_PCM_USER_CONTROL_MESSAGE,
-																	{?RTMP_UCM_STREAM_BEGIN, N}}).
+                                                             {?RTMP_UCM_STREAM_BEGIN, N}}).
 -define(RTMP_CMD_AMF0,										 1).
 -define(RTMP_CMD_AMF0_RTMPSAMPLEACCESS,						 6). %		{?RTMP_MSG_DATA_AMF0, [{?STRING, "|RtmpSampleAccess">>, false, false]}).
 -define(RTMP_CMD_AMF0_RESULT_CONNECT,						 7).

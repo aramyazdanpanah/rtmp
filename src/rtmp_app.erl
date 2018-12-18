@@ -24,7 +24,7 @@
 %% External API functions
 
 -export([
-         accept_connection/1,
+         accept_connection/2,
          reject_connection/1,
          accept_publish/3,
          reject_publish/2,
@@ -39,7 +39,9 @@
          get_env/2,
          response/4,
          status/3,
+         status/2,
          status/4,
+         cmd/1,
          cmd/2,
          stream/0,
          stream/1,
@@ -55,6 +57,7 @@
 start(_Type, _Args) ->
                                                 % Res = eprof:start(),
                                                 % ?LOG_DEBUG("eprof:start() return: ~p", [Res]),
+    ok = syn:init(),
 	rtmp_sup:start().
 
 stop(_State) ->
@@ -65,23 +68,23 @@ stop(_State) ->
 %% External API functions
 %%==============================================================================================================================================
 
-accept_connection(Channel) ->
-	rtmp_channel:message(Channel, ?CMDSID, accept_connection).
+accept_connection(Channel, TrID) ->
+	rtmp_channel:message(Channel, ?CMDSID, {accept_connection, TrID}).
 
 reject_connection(Channel) ->
 	rtmp_channel:message(Channel, ?CMDSID, reject_connection).
 
 accept_publish(Channel, StreamRef, Publish) ->
-	rtmp:message(Channel, StreamRef, {accept_publish, Publish}).
+	rtmp_app:message(Channel, StreamRef, {accept_publish, Publish}).
 
 reject_publish(Channel, StreamRef) ->
-	rtmp:message(Channel, StreamRef, reject_publish).
+	rtmp_app:message(Channel, StreamRef, reject_publish).
 
 accept_play(Channel, StreamRef) ->
-	rtmp:message(Channel, StreamRef, accept_play).
+	rtmp_app:message(Channel, StreamRef, accept_play).
 
 reject_play(Channel, StreamRef) ->
-	rtmp:message(Channel, StreamRef, reject_play).
+	rtmp_app:message(Channel, StreamRef, reject_play).
 
 message(Channel, StreamRef, Message) ->
 	gen_server:cast(Channel, {message, external, StreamRef, Message}).
@@ -101,6 +104,13 @@ message(Channel, StreamRef, Message) ->
 response(CMD, TrID, Properties, Information) ->
 	[{?STRING, CMD}, TrID, Properties, Information].
 
+status(Code, Description) ->
+	{map, [
+           {{?STRING, "level"}, {?STRING, "status"}},
+           {{?STRING, "code"}, {?STRING, Code}},
+           {{?STRING, "description"}, {?STRING, Description}}
+          ]}.
+
 status(Code, Description, ClientID) ->
 	{map, [
            {{?STRING, "level"}, 		{?STRING, "status"}},
@@ -110,10 +120,10 @@ status(Code, Description, ClientID) ->
           ]}.
 status(Code, Description, Details, ClientID) ->
 	{map, [
-           {{?STRING, "level"}, 		{?STRING, "status"}},
-           {{?STRING, "code"}, 		{?STRING, Code}},
-           {{?STRING, "description"}, 	{?STRING, Description}},
-           {{?STRING, "details"}, 		{?STRING, Details}},
+           {{?STRING, "level"}, {?STRING, "status"}},
+           {{?STRING, "code"}, {?STRING, Code}},
+           {{?STRING, "description"}, {?STRING, Description}},
+           {{?STRING, "details"}, {?STRING, Details}},
            {{?STRING, "clientid"}, 	{?STRING, ClientID}}
           ]}.
 
@@ -135,6 +145,9 @@ error(Code, Description, Details, ClientID) ->
           ]}.
 
 %%--------------------------------------------------------------------
+cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_START) ->
+    Information = status("NetStream.Publish.Start", "Start publishing"),
+    {?RTMP_MSG_COMMAND_AMF3, response("onStatus", 0.0, null, Information)}.
 
 cmd(?RTMP_CMD_AMF0, {Command, Params}) ->
 	{?RTMP_MSG_COMMAND_AMF0, [Command, 0, null, Params]};
@@ -157,13 +170,13 @@ cmd(?RTMP_CMD_AMF0_RESULT_CONNECT, {TrID}) ->
 cmd(?RTMP_CMD_AMF0_RESULT_CREATE_STREAM, {TrID, N}) ->
 	{?RTMP_MSG_COMMAND_AMF0, response("_result", TrID, null, N)};
 
-cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_START, {Name, ID}) ->
-	Information = status("NetStream.Publish.Start", Name ++ " is now published.", ID),
-	{?RTMP_MSG_COMMAND_AMF3, response("onStatus", 0.0, null, Information)};
+cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_START, {_Name, _ID}) ->
+    Information = status("NetStream.Publish.Start", "Start publishing"),
+	{?RTMP_MSG_COMMAND_AMF0, response("onStatus", 0.0, null, Information)};
 
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PUBLISH_BADNAME, {Name, ID}) ->
 	Information = error("NetStream.Publish.BadName", Name ++ " is not published.", ID),
-	{?RTMP_MSG_COMMAND_AMF3, response("onStatus", 0.0, null, Information)};
+	{?RTMP_MSG_COMMAND_AMF0, response("onStatus", 0.0, null, Information)};
 
 cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_UNPUBLISH_SUCCESS, {Name, ID}) ->
 	Information = status("NetStream.Unpublish.Success", Name ++ " is now unpublished.", ID),
@@ -185,8 +198,8 @@ cmd(?RTMP_CMD_AMF0_ONSTATUS_NETSTREAM_PLAY_FAILED, {Name, ID}) ->
 	Information = error("NetStream.Play.Failed", "Failed playing " ++ Name, Name, ID),
 	{?RTMP_MSG_COMMAND_AMF3, response("onStatus", 0.0, null, Information)};
 
-cmd(?RTMP_CMD_AMF0_RTMPSAMPLEACCESS, _) ->
-	{?RTMP_MSG_DATA_AMF0, [{?STRING, "|RtmpSampleAccess"}, false, false]};
+cmd(?RTMP_CMD_AMF0_RTMPSAMPLEACCESS, Boolean) ->
+	{?RTMP_MSG_DATA_AMF0, [{?STRING, "|RtmpSampleAccess"}, Boolean, Boolean]};
 
 cmd(_N, _Args) ->
 	{?RTMP_MSG_COMMAND_AMF0, []}.

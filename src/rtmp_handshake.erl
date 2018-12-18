@@ -102,7 +102,7 @@ handshake(handshake_C1, #{socket := Socket} = State) ->
 	end;
 
 handshake({handshake_S0, C1}, #{version := ?RTMP_ENCRYPTED_CONNECTION, client_type := ClientType} = State) ->
-	Bin = <<0:32, 3:8, 0:8, 2:8, 1:8, (crypto:rand_bytes(?RTMP_HS_BODY_LEN - 8))/binary>>,
+	Bin = <<0:32, 3:8, 0:8, 2:8, 1:8, (crypto:strong_rand_bytes(?RTMP_HS_BODY_LEN - 8))/binary>>,
 	{_, ClientPublic, _} = get_dh_key(ClientType, C1),
 	{ServerPublic, SharedSecret} = generate_dh(ClientPublic),
 	{ServerFirst, _, ServerRest} = get_dh_key(ClientType, Bin),
@@ -111,7 +111,7 @@ handshake({handshake_S0, C1}, #{version := ?RTMP_ENCRYPTED_CONNECTION, client_ty
 	handshake({handshake_S1_S2, Response, C1}, State#{keyin => KeyIn, keyout => KeyOut});
 
 handshake({handshake_S0, C1}, #{version := ?RTMP_UNCRYPTED_CONNECTION} = State) ->
-	Response = <<0:32, 3:8, 0:8, 2:8, 1:8, (crypto:rand_bytes(?RTMP_HS_BODY_LEN - 8))/binary>>,
+	Response = <<0:32, 3:8, 0:8, 2:8, 1:8, (crypto:strong_rand_bytes(?RTMP_HS_BODY_LEN - 8))/binary>>,
 	handshake({handshake_S1_S2, Response, C1}, State);
 
 handshake({handshake_S1_S2, Response, C1}, #{socket := Socket, version := Version, client_type := ClientType} = State) ->
@@ -120,7 +120,7 @@ handshake({handshake_S1_S2, Response, C1}, #{socket := Socket, version := Versio
 	ServerDigest = hmac256:digest_bin(ServerFMSKey, <<Digest1/binary, Digest2/binary>>),
 	S1 = <<Digest1/binary, ServerDigest/binary, Digest2/binary>>,
 
-	Response2 = crypto:rand_bytes(?RTMP_HS_BODY_LEN - 32),
+	Response2 = crypto:strong_rand_bytes(?RTMP_HS_BODY_LEN - 32),
 	{_, ClientDigest, _} = client_digest(ClientType, C1),
 	TempHash = hmac256:digest_bin(?GENUINE_FMS_KEY, ClientDigest),
 	ClientHash = hmac256:digest_bin(TempHash, Response2),
@@ -198,7 +198,7 @@ generate_dh(ClientPublic) ->
 crypto_keys(ServerPublic, ClientPublic, SharedSecret) ->
 	KeyOut1 = rc4_key(SharedSecret, ClientPublic),
 	KeyIn1 = rc4_key(SharedSecret, ServerPublic),
-	D1 = crypto:rand_bytes(?RTMP_HS_BODY_LEN),
+	D1 = crypto:strong_rand_bytes(?RTMP_HS_BODY_LEN),
 	{KeyIn, D2} = crypto:stream_encrypt(KeyIn1, D1),
 	{KeyOut, _} = crypto:stream_encrypt(KeyOut1, D2),
 	{KeyIn, KeyOut}.

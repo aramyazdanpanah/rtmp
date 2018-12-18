@@ -22,7 +22,7 @@ decode(<<>>) ->
 	nil;
 decode(Data) ->
 	decode(value, [], empty, empty, Data).
-	
+
 decode(value, Stack, empty, empty, Data) ->
 	decode(type, [{value, empty} | Stack], empty, empty, Data);
 decode(value, [], empty, Value, <<>>) ->
@@ -42,22 +42,22 @@ decode(map, Stack, {Type, Map}, KeyValue, Data) ->
 	decode(mapkey, [{map, {Type, [KeyValue | Map]}} | Stack], empty, empty, Data);
 
 decode(mapkey, [{STATE, MSG} | Stack], empty, empty, <<0:16, ?AMF0_OBJECTEND:8, Data/binary>>) ->
-	decode(STATE, Stack, MSG, mapend, Data);	
+	decode(STATE, Stack, MSG, mapend, Data);
 decode(mapkey, Stack, empty, empty, <<L:16, MapKey:L/binary, Data/binary>>) ->
 	decode(mapvalue, Stack, {?STRING, binary_to_list(MapKey)}, empty, Data);
-	
+
 decode(mapvalue, Stack, MapKey, empty, Data) ->
 	decode(type, [{mapvalue, MapKey} | Stack], empty, empty, Data);
 decode(mapvalue, [{STATE, MSG} | Stack], MapKey, MapValue, Data) ->
 	decode(STATE, Stack, MSG, {MapKey, MapValue}, Data);
-	
+
 decode(array, Stack, {LA, Array}, empty, Data) ->
 	decode(type, [{array, {LA-1, Array}} | Stack], empty, empty, Data);
 decode(array, [{STATE, MSG} | Stack], {0, Array}, Value, Data) ->
 	decode(STATE, Stack, MSG, lists:reverse([Value | Array]), Data);
 decode(array, Stack, {LA, Array}, Value, Data) ->
 	decode(type, [{array, {LA-1, [Value | Array]}} | Stack], empty, empty, Data);
-	
+
 decode(type, [{STATE, MSG} | Stack], empty, empty, <<?AMF0_NUMBER:8, NANs:8/binary, Data/binary>>) ->
 	case NANs of
 		?POS_INFINITY ->
@@ -103,12 +103,12 @@ decode(type, Stack, empty, empty, <<?AMF0_TYPEDOBJECT:8, L:16, Class:L/binary, D
 	decode(map, Stack, {?STRING, Class}, empty, Data);
 decode(type, [{STATE, MSG} | Stack], empty, empty, <<?AMF0_AVMPLUSOBJECT:8, Data/binary>>) ->
 	decode(STATE, Stack, MSG, {?AMF0_AVMPLUSOBJECT, Data}, <<>>);
-	
+
 decode(Type, Stack, Msg, Value, Data) ->
 	io:format("~w (~w): amf0 decode error:~nType = ~p~nStack = ~p~nMsg = ~p~nValue = ~p~nData = ~p~n", [?MODULE, self(), Type, Stack, Msg, Value, Data]),
 	null.
-	
-	
+
+
 
 encode_args(List) ->
 	encode_args(List, <<>>).
@@ -118,18 +118,18 @@ encode_args([Element | List], Data) ->
 	Bin = ?MODULE:encode(Element),
 %	io:format("~nencode_args: ~p~n", [List]),
 	encode_args(List, <<Data/binary, Bin/binary>>).
-	
+
 encode(Msg) ->
 	encode(value, [], Msg, <<>>).
-	
+
 encode(value, [], empty, Data) ->
 	Data;
 encode(value, [], Msg, Data) ->
 	encode(type, [{value, empty}], Msg, Data);
-	
+
 encode(float, [{STATE, MSG} | Stack], Number, Data) ->
 	encode(STATE, Stack, MSG, <<Data/binary, ?AMF0_NUMBER:8, Number:64/float>>);
-	
+
 encode(string, [{STATE, MSG} | Stack], String, Data) ->
 	Bin = list_to_binary(String),
 	Len = byte_size(Bin),
@@ -140,7 +140,7 @@ encode(string, [{STATE, MSG} | Stack], String, Data) ->
 			<<?AMF0_LONGSTRING:8, Len:32>>
 	end,
 	encode(STATE, Stack, MSG, <<Data/binary, Type/binary, Bin/binary>>);
-	
+
 encode(array, [{STATE, MSG} | Stack], {0, []}, Data) ->
 	encode(STATE, Stack, MSG, Data);
 encode(array, Stack, {LA, [Element | Array]}, Data) ->
@@ -148,7 +148,7 @@ encode(array, Stack, {LA, [Element | Array]}, Data) ->
 encode(array, Stack, Array, Data) ->
 	LA = erlang:length(Array),
 	encode(array, Stack, {LA, Array}, <<Data/binary, ?AMF0_STRICTARRAY:8, LA:32>>);
-	
+
 encode(map, [{STATE, MSG} | Stack], [], Data) ->
 	encode(STATE, Stack, MSG, <<Data/binary, 0:16, ?AMF0_OBJECTEND:8>>);
 encode(map, Stack, {[], List}, Data) ->
@@ -158,12 +158,12 @@ encode(map, Stack, {{?STRING, ClassName}, List}, Data) ->
 	encode(map, Stack, List, <<Data/binary, ?AMF0_TYPEDOBJECT:8, Len:16, ClassName/binary>>);
 encode(map, Stack, [Element | List], Data) ->
 	encode(mapkey, [{map, List} | Stack], Element, Data);
-	
+
 encode(mapkey, Stack, {{?STRING, Key}, Value}, Data) ->
 	Bin = list_to_binary(Key),
 	Len = byte_size(Bin),
-	encode(type, Stack, Value, <<Data/binary, Len:16, Bin/binary>>);	
-	
+	encode(type, Stack, Value, <<Data/binary, Len:16, Bin/binary>>);
+
 encode(type, Stack, Msg, Data) when is_integer(Msg) ->
 	encode(float, Stack, Msg, Data);
 encode(type, Stack, Msg, Data) when is_float(Msg) ->
@@ -200,7 +200,7 @@ encode(type, [{STATE, MSG} | Stack], {?AMF0_XMLDOCUMENT, XMLDocument}, Data) ->
 	encode(STATE, Stack, MSG, <<Data/binary, ?AMF0_XMLDOCUMENT:8, XMLDocument/binary>>);
 encode(type, [{STATE, MSG} | Stack], {?AMF0_AVMPLUSOBJECT, ObjData}, Data) ->
 	encode(STATE, Stack, MSG, <<Data/binary, ?AMF0_AVMPLUSOBJECT:8, ObjData/binary>>);
-	
+
 encode(Type, Stack, Msg, Data) ->
 	io:format("~w (~w): amf0 encode error:~nType = ~p~nStack = ~p~nMsg = ~p~nData = ~p~n", [?MODULE, self(), Type, Stack, Msg, Data]),
 	<<?AMF0_NULL:8>>.
@@ -221,7 +221,7 @@ encode(Type, Stack, Msg, Data) ->
 -define(TEST_COUNT, 1000).
 -define(TEST_LIST, [?AMF0_NUMBER]).
 
-	
+
 test_msg() ->
 	io:format("Test message:~n~p~n", [?TEST_MSG]),
 	test_msg(?TEST_MSG).
@@ -230,7 +230,7 @@ test_msg(Msg) ->
 	Size = byte_size(Bin),
 	{Td, _Res} = timer:tc(?MODULE, decode, [Bin]),
 	{round(Te/1000), round(Td/1000), Size}.
-	
+
 test() ->
 	test(?TEST_COUNT).
 test(Count) ->
@@ -240,10 +240,10 @@ test(Count) ->
 		io:format("Test: ~w (~w), count: ~w, result: ~w~n", [Name, Type, Count, Res])
 	end,
 	lists:foreach(F, ?TEST_LIST).
-	
+
 get_test_msg(?AMF0_NUMBER, Count) ->
 	{number, get_msg(-1*math:pi(), Count)}.
-	
+
 get_msg(Value, Count) ->
 	get_msg(Value, Count, []).
 get_msg(_Value, 0, List) ->

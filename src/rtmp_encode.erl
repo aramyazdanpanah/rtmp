@@ -85,7 +85,7 @@ handle_call(Request, _From, State) ->
 handle_cast({send_message, StreamID, Message}, #{list := List} = State) ->
 	case lists:keyfind(StreamID, 1, List) of
 		false ->
-			?LOG_ERROR("send_message: nomatch StreamID: ~p", [StreamID]),
+			?LOG_ERROR("send_message: nomatch StreamID:~p / List:~p", [StreamID, List]),
 			{stop, {error, nomatch}, State};
 		{StreamID, Stream} ->
 			case start_encode(Message, Stream, State) of
@@ -134,7 +134,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 
 start_encode({Type, Message}, #{fts := undefined} = Stream, State) ->
-	encode({type, Type, Message}, Stream#{fts => erlang:now()}, State);
+    encode({type, Type, Message}, Stream#{fts => erlang:now()}, State);
 
 start_encode({Type, Message}, Stream, State) ->
 	encode({type, Type, Message}, Stream, State).
@@ -164,7 +164,9 @@ encode({type, Type, Msg}, #{csid := CSID} = Stream, State) ->
 		?RTMP_MSG_DATA_AMF0 ->
 			Bin = amf0:encode_args(Msg),
 			encode({msghead, Type, byte_size(Bin), Bin}, Stream#{csid_bin => <<CSID:6>>}, State);
-		?RTMP_MSG_COMMAND_AMF0 ->
+		?RTMP_MSG_DATA_AMF0_BIN ->
+			encode({msghead, ?RTMP_MSG_DATA_AMF0, byte_size(Msg), Msg}, Stream#{csid_bin => <<CSID:6>>}, State);
+        ?RTMP_MSG_COMMAND_AMF0 ->
 			Bin = amf0:encode_args(Msg),
 			encode({fmt_0, Type, byte_size(Bin), Bin}, Stream#{csid_bin => <<3:6>>}, State);
 		?RTMP_MSG_COMMAND_AMF3 ->

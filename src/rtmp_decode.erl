@@ -31,10 +31,11 @@
           ackwinsize   => ?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE,
           decode_func  => decode_basic_header,
           chunk_stream => undefined,
-          buffer       => <<>>
+          buffer       => <<>>,
+          chunk_size   => ?RTMP_CONST_CHUNK_SIZE
          }).
 
--define(CHUNK_STREAM_STATE(CSID, REF),
+-define(CHUNK_STREAM_STATE(CSID, REF, CSize),
         #{
            stream   => undefined,
            sid      => undefined,
@@ -46,7 +47,7 @@
            ref      => REF,
            received => 0,
            bufsize  => 0,
-           csize    => ?RTMP_CONST_CHUNK_SIZE,
+           csize    => CSize,
            data     => <<>>
          }).
 
@@ -74,7 +75,7 @@ setAckWinSize(Decode, AckWinSize) ->
 init({Channel, Socket, Encrypted, KeyIn}) ->
                                                 % Res = eprof:start_profiling([self()]),
                                                 % ?LOG_DEBUG("eprof:start_profiling(~p) return: ~p", [self(), Res]),
-    ?LOG_DEBUG("Start rtmp_decode; Channel: ~p; Socket: ~p", [Channel, Socket]),
+    ?LOG_DEBUG("Start rtmp_decode; Channel: ~p; Socket: ~p , keyin: ~p", [Channel, Socket, KeyIn]),
 	erlang:monitor(process, Channel),
 	gen_server:cast(self(), recv),
 	State = ?DECODE_STATE,
@@ -96,6 +97,7 @@ handle_call(Request, _From, State) ->
 handle_cast(recv, #{socket := Socket, channel := Channel, received := Received, sended := Sended} = State) ->
 	case gen_tcp:recv(Socket, 0, 5000) of
 		{ok, Data} ->
+            %%?LOG_DEBUG("------<> Data:~p", [Data]),
 			gen_server:cast(self(), recv),
 			case Received - Sended >= ?RTMP_CONST_ACKNOWLEDGEMENT_WINDOW_SIZE of
 				true ->
@@ -166,44 +168,61 @@ decode(#{decode_func := Function} = State, CS, Buf) ->
 		decode_chunk_payload -> decode_chunk_payload(State, CS, Buf)
 	end.
 
-decode_basic_header(State, CS, <<>>) 										-> {noreply, State#{decode_func => decode_basic_header, chunk_stream => CS, buffer => <<>>}};
-decode_basic_header(State, CS, <<Fmt:2, 0:6, CSID:8, Buf/binary>>)			-> decode_chunk_stream_id(State#{rfmt => Fmt, rcsid => CSID}, CS, Buf);
-decode_basic_header(State, CS, <<Fmt:2, 1:6, CSID:16, Buf/binary>>)			-> decode_chunk_stream_id(State#{rfmt => Fmt, rcsid => CSID}, CS, Buf);
-decode_basic_header(State, CS, <<Fmt:2, CSID:6, Buf/binary>>) when CSID > 1	-> decode_chunk_stream_id(State#{rfmt => Fmt, rcsid => CSID}, CS, Buf);
-decode_basic_header(State, CS, Buf)											-> {noreply, State#{decode_func => decode_basic_header, chunk_stream => CS, buffer => Buf}}.
+decode_basic_header(State, CS, <<>>) ->
+    {noreply, State#{decode_func => decode_basic_header, chunk_stream => CS, buffer => <<>>}};
+decode_basic_header(State, CS, <<Fmt:2, 0:6, CSID:8, Buf/binary>>) ->
+    decode_chunk_stream_id(State#{rfmt => Fmt, rcsid => CSID}, CS, Buf);
+decode_basic_header(State, CS, <<Fmt:2, 1:6, CSID:16, Buf/binary>>)	->
+    decode_chunk_stream_id(State#{rfmt => Fmt, rcsid => CSID}, CS, Buf);
+decode_basic_header(State, CS, <<Fmt:2, CSID:6, Buf/binary>>) when CSID > 1	->
+    decode_chunk_stream_id(State#{rfmt => Fmt, rcsid => CSID}, CS, Buf);
+decode_basic_header(State, CS, Buf) ->
+    {noreply, State#{decode_func => decode_basic_header, chunk_stream => CS, buffer => Buf}}.
 
-decode_chunk_stream_id(#{list := List, rcsid := CSID} = State, undefined, Buf) ->
-	NewCS = ?CHUNK_STREAM_STATE(CSID, erlang:make_ref()),
+decode_chunk_stream_id(#{list := List, rcsid := CSID, chunk_size := CSize} = State, undefined, Buf) ->
+	NewCS = ?CHUNK_STREAM_STATE(CSID, erlang:make_ref(), CSize),
 	decode_message_header(State#{list => [{CSID, NewCS} | List]}, NewCS, Buf);
 decode_chunk_stream_id(#{rcsid := CSID} = State, #{csid := CSID} = CS, Buf) ->
 	decode_message_header(State, CS, Buf);
-decode_chunk_stream_id(#{list := List, rcsid := RCSID} = State, #{csid := CSID} = CS, Buf) ->
+decode_chunk_stream_id(#{list := List, rcsid := RCSID, chunk_size := CSize} = State, #{csid := CSID} = CS, Buf) ->
 	case lists:keyfind(RCSID, 1, List) of
 		false ->
-			NewCS = ?CHUNK_STREAM_STATE(RCSID, erlang:make_ref()),
+			NewCS = ?CHUNK_STREAM_STATE(RCSID, erlang:make_ref(), CSize),
 			decode_message_header(State#{list => [{RCSID, NewCS} | lists:keyreplace(CSID, 1, List, {CSID, CS})]}, NewCS, Buf);
 		{RCSID, NextCS} ->
 			decode_message_header(State#{list => lists:keyreplace(CSID, 1, List, {CSID, CS})}, NextCS, Buf)
 	end.
 
-decode_message_header(#{rfmt := 0} = State, CS, <<Ts:24,  Len:24, Type:8, Sid:8, _Bin:24, Buf/binary>>)	-> decode_chunk_payload(State, CS#{ts  => Ts,  len => Len, type => Type, sid => Sid}, Buf);
-decode_message_header(#{rfmt := 1} = State, CS, <<Tsd:24, Len:24, Type:8, Buf/binary>>)					-> decode_chunk_payload(State, CS#{tsd => Tsd, len => Len, type => Type}, Buf);
-decode_message_header(#{rfmt := 2} = State, CS, <<Tsd:24, Buf/binary>>)									-> decode_chunk_payload(State, CS#{tsd => Tsd}, Buf);
-decode_message_header(#{rfmt := 3} = State, CS, <<>>)													-> {noreply, State#{decode_func => decode_message_header, chunk_stream => CS, buffer => <<>>}};
-decode_message_header(#{rfmt := 3} = State, CS, Buf)													-> decode_chunk_payload(State, CS, Buf);
-decode_message_header(State, CS, Buf)																	-> {noreply, State#{decode_func => decode_message_header, chunk_stream => CS, buffer => Buf}}.
+decode_message_header(#{rfmt := 0} = State, CS, <<Ts:24,  Len:24, Type:8, Sid:8, _Bin:24, Buf/binary>>)	->
+    decode_chunk_payload(State, CS#{ts  => Ts,  len => Len, type => Type, sid => Sid}, Buf);
+decode_message_header(#{rfmt := 1} = State, CS, <<Tsd:24, Len:24, Type:8, Buf/binary>>) ->
+    decode_chunk_payload(State, CS#{tsd => Tsd, len => Len, type => Type}, Buf);
+decode_message_header(#{rfmt := 2} = State, CS, <<Tsd:24, Buf/binary>>)->
+    decode_chunk_payload(State, CS#{tsd => Tsd}, Buf);
+decode_message_header(#{rfmt := 3} = State, CS, <<>>) ->
+    {noreply, State#{decode_func => decode_message_header, chunk_stream => CS, buffer => <<>>}};
+decode_message_header(#{rfmt := 3} = State, CS, Buf) ->
+    decode_chunk_payload(State, CS, Buf);
+decode_message_header(State, CS, Buf) ->
+    {noreply, State#{decode_func => decode_message_header, chunk_stream => CS, buffer => Buf}}.
 
-decode_chunk_payload(State, #{data := Data, len := Len, csize := CSize, received := Received} = CS, Buf) when Len - Received > CSize, CSize =< byte_size(Buf) ->
-	<<Payload:CSize/binary, Rest/binary>> = Buf,
+decode_chunk_payload(State, #{data := Data, len := Len, csize := CSize, received := Received} = CS, Buf)
+  when Len - Received > CSize, CSize =< byte_size(Buf) ->
+    %%?LOG_DEBUG("===> [decode_basic_header] CS: ~p, Len:~p, Rx:~p, Buff:~p", [CS, Len, Received, byte_size(Buf)]),
+    <<Payload:CSize/binary, Rest/binary>> = Buf,
 	decode_basic_header(State, CS#{received => Received + CSize, data => <<Data/binary, Payload/binary>>}, Rest);
-decode_chunk_payload(State, #{data := Data, len := Len, csize := CSize, received := Received} = CS, Buf) when Len - Received =< CSize, Len - Received =< byte_size(Buf) ->
-	RemLen = Len - Received,
+decode_chunk_payload(State, #{data := Data, len := Len, csize := CSize, received := Received} = CS, Buf)
+  when Len - Received =< CSize, Len - Received =< byte_size(Buf) ->
+	%% I have one chunk in received data: 'Len - Received =< CSize'
+    %% Buffer contains complete payload : 'Len - Received =< byte_size(Buf)'
+    %%?LOG_DEBUG("===> [decode_message_data] CS: ~p, Len:~p, Rx:~p, Buff:~p", [CS, Len, Received, byte_size(Buf)]),
+    RemLen = Len - Received,
 	<<Payload:RemLen/binary, Rest/binary>> = Buf,
 	decode_message_data(State, CS#{remlen => 0, received => 0, data => <<Data/binary, Payload/binary>>}, Rest);
 decode_chunk_payload(State, CS, Buf) ->
 	{noreply, State#{decode_func => decode_chunk_payload, chunk_stream => CS, buffer => Buf}}.
 
-decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
+decode_message_data(#{list := List} = State, #{data := Data, type := Type} = CS, Buf) ->
 	case Type of
 		?RTMP_MSG_COMMAND_AMF0 ->
 			Msg = amf0:decode_args(Data),
@@ -218,6 +237,15 @@ decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
                           {stop, {error, nomatch}, State#{chunk_stream => CS}}
                   end,
 			send_message(State, CS#{data => <<>>}, Buf, {command, Msg});
+		?RTMP_PCM_SET_CHUNK_SIZE ->
+			<<CSize:32/integer>> = Data,
+            SelectedCS = lists:foldl(fun({_, #{sid := 1} = M}, #{}) ->
+                                             M#{csize => CSize};
+                                        (_, ACC) ->
+                                             ACC
+                                     end, #{}, List),
+            ?LOG_DEBUG("===> SetChunkSize: ~p~nSelectedCS:~p~nBuffer: ~p", [CSize, SelectedCS, size(Buf)]),
+            {noreply, State#{chunk_size => CSize, decode_func => decode_basic_header, chunk_stream => SelectedCS, buffer => Buf}};
 		?RTMP_PCM_USER_CONTROL_MESSAGE ->
 			<<EventType:16, EventData/binary>> = Data,
 			case EventType of
@@ -241,14 +269,17 @@ decode_message_data(State, #{data := Data, type := Type} = CS, Buf) ->
 			<<Size:32>> = Data,
 			send_message(State, CS#{data => <<>>}, Buf, {acknowledgement, Size});
 		?RTMP_MSG_AUDIO ->
-			send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_AUDIO}});
+            send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_AUDIO}});
 		?RTMP_MSG_VIDEO ->
-			send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_VIDEO}});
-		ANY_TYPE ->
-			?LOG_ERROR("Unknown type number: ~p", [ANY_TYPE]),
-			{stop, {error, nomatch}, State#{chunk_stream => CS, buffer => Buf}}
+            send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_VIDEO}});
+		?RTMP_MSG_DATA_AMF0 ->
+            %% decode_basic_header(State, CS#{data => <<>>}, Buf);
+            send_message(State, CS#{data => <<>>}, Buf, {publish, {data, Data, ?RTMP_MSG_DATA_AMF0}});
+        ANY_TYPE ->
+            ?LOG_ERROR("Unknown type number: ~p, CS:~p", [ANY_TYPE, CS]),
+            {stop, {error, nomatch}, State#{chunk_stream => CS, buffer => Buf}}
 	end.
 
-send_message(#{channel := Channel} = State, #{sid := SID} = CS, Buf, Message) ->
+send_message(#{channel := Channel, list := _List} = State, #{sid := SID} = CS, Buf, Message) ->
 	rtmp_channel:message(Channel, SID, Message),
 	decode_basic_header(State, CS, Buf).
